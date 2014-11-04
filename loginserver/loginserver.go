@@ -6,14 +6,14 @@ import (
   "os"
   "crypto/rand"
   "crypto/rsa"
-  "code.google.com/p/go.crypto/blowfish"
+  "github.com/frostwind/l2go/packet"
 )
 
 func handleConnection(conn net.Conn, modulus []byte, key *rsa.PrivateKey) {
 
   // Create the packet wrapper
-  packet := []byte{0x00,
-		0xfd, 0x8a, 0x22, 0x00, 0x5a, 0x78, 0x00, 0x00, // Header
+  packet_c := []byte{0x00,
+    0xfd, 0x8a, 0x22, 0x00, 0x5a, 0x78, 0x00, 0x00, // Header : Session id and Protocol revision 0x785a
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // Fake RSA key modulus
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -35,15 +35,15 @@ func handleConnection(conn net.Conn, modulus []byte, key *rsa.PrivateKey) {
 
   // Inject our modulus
   for i := 0; i < len(modulus); i++ {
-    packet[9 + i] = modulus[i]
+    packet_c[9 + i] = modulus[i]
   }
 
-  length := len(packet) + 2
+  length := len(packet_c) + 2
   buffer := make([]byte, length)
 
   buffer[0] = byte(length & 0xff)
   buffer[1] = byte((length >> 8) & 0xff)
-  copy(buffer[2:], packet)
+  copy(buffer[2:], packet_c)
 
   fmt.Println("A client is trying to connect...")
   fmt.Printf("Created a an init packet[%d] = %X\n", len(buffer), buffer)
@@ -53,65 +53,15 @@ func handleConnection(conn net.Conn, modulus []byte, key *rsa.PrivateKey) {
 
   fmt.Println("Receiving the Init response")
   for {
+    received := make([]byte, 65537)
 
-    // Receive the packet header (size)
-    header := make([]byte, 2)
+    _, _ = conn.Read(received)
 
-    _, _ = conn.Read(header)
-
-    // Calculate the packet size
-    var size int = 0
-    size = size + int(header[0])
-    size = size + (int(header[1])*256)
-
-    if size > 0 {
-
-      fmt.Printf("Received a packet header...\n")
-      fmt.Printf("Expected packet length: %d\n", size-2)
-
-      // Receive the content packet
-      data := make([]byte, size-2)
-
-      n, _ := conn.Read(data)
-
-      fmt.Printf("Actual packet length: %d\n", n)
-
-      if n != size-2 {
-        fmt.Println("Packet size error !!")
-      }
-
-      fmt.Printf("Packet content : %X%X\n", header, data)
-
-      decrypted := blowfishDecrypt(data, []byte(";5.]94-31==-%xT!^[$\000"), size-2)
-      fmt.Printf("Decrypted packet content : %X\n", decrypted)
-
-      //decoded, _ := rsa.DecryptPKCS1v15(rand.Reader, key, decrypted)
-      //fmt.Println(decoded)
-    }
-
+    fmt.Println("Decryption ..")
+    _, _ = packet.Decrypt(received)
   }
 
 }
-
-func blowfishDecrypt(encrypted, key []byte, size int) []byte {
-  // create the cipher
-  dcipher, err := blowfish.NewCipher(key)
-  if err != nil {
-    // fix this. its okay for this tester program, but...
-    panic(err)
-  }
-
-  count := len(encrypted) / 8;
-
-  decrypted := make([]byte, size)
-
-  for i := 0; i < count; i++ {
-    dcipher.Decrypt(decrypted[i*8:i*8+8], encrypted[i*8:i*8+8]);
-  }
-
-  return decrypted
-}
-
 func generateRSA() ([]byte, *rsa.PrivateKey) {
   privatekey, err := rsa.GenerateKey(rand.Reader, 1024)
 
