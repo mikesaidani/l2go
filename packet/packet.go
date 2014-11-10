@@ -1,7 +1,7 @@
 package packet
 
 import (
-	"code.google.com/p/go.crypto/blowfish"
+	"github.com/frostwind/l2go/blowfish"
 	"fmt"
 )
 
@@ -43,25 +43,8 @@ func Decrypt(buffer []byte) (*packet, error) {
 	fmt.Printf("Header : %X\n", p.header)
 	fmt.Printf("Data : %X\n", p.data)
 
-  key := []byte{0x5b, 0x3b, 0x27, 0x2e, 0x5d, 0x39, 0x34, 0x2d, 0x33, 0x31, 0x3d, 0x3d, 0x2d, 0x25, 0x26, 0x40, 0x21, 0x5e, 0x2b, 0x5d, 0x00}
-
-	decrypted := blowfishDecrypt(p.data, key)
+	decrypted := blowfishDecrypt(p.data, []byte("[;'.]94-31==-%&@!^+]\000"))
 	fmt.Printf("Decrypted packet content : %X\n", decrypted)
-
-	decrypted2 := blowfishDecrypt(p.data, []byte("_;5.]94-31==-%xT!^[$\000"))
-	fmt.Printf("Decrypted packet content : %X\n", decrypted2)
-
-	decrypted3 := blowfishDecrypt(p.data, []byte("[;'.]94-&@%!^+]-31==\000"))
-	fmt.Printf("Decrypted packet content : %X\n", decrypted3)
-
-	decrypted4 := blowfishDecrypt(p.data, []byte("31==-%&@!^+][;'.]94-\000"))
-	fmt.Printf("Decrypted packet content : %X\n", decrypted4)
-
-	decrypted5 := blowfishDecrypt(p.data, []byte("_;V.]05-31!|+-%XT!^[\000"))
-	fmt.Printf("Decrypted packet content : %X\n", decrypted5)
-
-	decrypted6 := blowfishDecrypt(p.data, []byte("_;v.]05-31!|+-%XT!^[\000"))
-	fmt.Printf("Decrypted packet content : %X\n", decrypted6)
 
 	if check := checksum(decrypted); check {
 		fmt.Println("checksum ok.")
