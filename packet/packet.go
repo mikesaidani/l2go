@@ -43,7 +43,9 @@ func Decrypt(buffer []byte) (*packet, error) {
 	fmt.Printf("Header : %X\n", p.header)
 	fmt.Printf("Data : %X\n", p.data)
 
-	decrypted := blowfishDecrypt(p.data, []byte("[;'.]94-31==-%&@!^+]\000"))
+  key := []byte{0x5b, 0x3b, 0x27, 0x2e, 0x5d, 0x39, 0x34, 0x2d, 0x33, 0x31, 0x3d, 0x3d, 0x2d, 0x25, 0x26, 0x40, 0x21, 0x5e, 0x2b, 0x5d, 0x00}
+
+	decrypted := blowfishDecrypt(p.data, key)
 	fmt.Printf("Decrypted packet content : %X\n", decrypted)
 
 	decrypted2 := blowfishDecrypt(p.data, []byte("_;5.]94-31==-%xT!^[$\000"))
@@ -108,7 +110,7 @@ func blowfishDecrypt(encrypted, key []byte) []byte {
 	decrypted := make([]byte, len(encrypted))
 
 	for i := 0; i < count; i++ {
-		dcipher.Encrypt(decrypted[i*8:], encrypted[i*8:])
+		dcipher.Decrypt(decrypted[i*8:], encrypted[i*8:])
 	}
 
 	return decrypted
