@@ -41,6 +41,26 @@ func handleConnection(conn net.Conn) {
 				fmt.Println(err)
 			}
 
+		case 02:
+			serverId := p.GetData()[4+4+1] // Skip the sessionId (2*4bytes) and grab the serverId
+
+			fmt.Printf("The client wants to connect to the server : %X\n", serverId)
+
+			buffer := serverpackets.NewPlayOkPacket()
+			err := packet.Send(conn, buffer)
+
+			if err != nil {
+				fmt.Println(err)
+			}
+
+		case 05:
+			buffer := serverpackets.NewServerListPacket()
+			err := packet.Send(conn, buffer)
+
+			if err != nil {
+				fmt.Println(err)
+			}
+
 		default:
 			fmt.Println("Couldn't detect the packet type.")
 		}

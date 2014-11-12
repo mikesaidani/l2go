@@ -28,6 +28,10 @@ func (p *packet) GetOpcode() byte {
 	return p.opcode
 }
 
+func (p *packet) GetData() []byte {
+	return p.data[1:]
+}
+
 func Receive(conn net.Conn) (*packet, error) {
 
 	// Init our packet struct
@@ -108,7 +112,6 @@ func Send(conn net.Conn, data []byte, params ...bool) error {
 			}
 		}
 
-		fmt.Printf("%X\n", data)
 		// Finally do the checksum
 		checksum(data)
 	}
