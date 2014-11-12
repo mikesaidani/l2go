@@ -24,6 +24,10 @@ func (e packetError) Error() string {
 	return fmt.Sprintf("%v", e.message)
 }
 
+func (p *packet) GetOpcode() byte {
+	return p.opcode
+}
+
 func Receive(conn net.Conn) (*packet, error) {
 
 	// Init our packet struct
@@ -91,18 +95,37 @@ func Send(conn net.Conn, data []byte, params ...bool) error {
 		doBlowfish = false
 	}
 
-	// Add the packet length
-	length := len(data) + 2
-	header := []byte{byte(length) & 0xff, byte(length>>8) & 0xff}
-	data = append(header, data...)
-
 	if doChecksum == true {
+		// Add 4 empty bytes for the checksum
+		data = append(data, []byte{0x00, 0x00, 0x00, 0x00}...)
+
+		// Add blowfish padding
+		missing := len(data) % 8
+
+		if missing != 0 {
+			for i := missing; i < 8; i++ {
+				data = append(data, byte(0x00))
+			}
+		}
+
+		fmt.Printf("%X\n", data)
+		// Finally do the checksum
 		checksum(data)
 	}
 
 	if doBlowfish == true {
+		var err error
+		data, err = blowfishEncrypt(data, []byte("[;'.]94-31==-%&@!^+]\000"))
 
+		if err != nil {
+			return err
+		}
 	}
+
+	// Add the packet length
+	length := len(data) + 2
+	header := []byte{byte(length) & 0xff, byte(length>>8) & 0xff}
+	data = append(header, data...)
 
 	_, err := conn.Write(data)
 
@@ -163,4 +186,29 @@ func blowfishDecrypt(encrypted, key []byte) ([]byte, error) {
 	}
 
 	return decrypted, nil
+}
+
+func blowfishEncrypt(decrypted, key []byte) ([]byte, error) {
+
+	// Initialize our cipher
+	cipher, err := blowfish.NewCipher(key)
+
+	if err != nil {
+		return nil, packetError{"Couldn't initialize the blowfish cipher"}
+	}
+
+	// Check if the decrypted data is a multiple of our block size
+	if len(decrypted)%8 != 0 {
+		return nil, packetError{"The decrypted data is not a multiple of the block size"}
+	}
+
+	count := len(decrypted) / 8
+
+	encrypted := make([]byte, len(decrypted))
+
+	for i := 0; i < count; i++ {
+		cipher.Encrypt(encrypted[i*8:], decrypted[i*8:])
+	}
+
+	return encrypted, nil
 }

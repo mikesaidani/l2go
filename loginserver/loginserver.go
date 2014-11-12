@@ -1,8 +1,8 @@
 package loginserver
 
 import (
-	"bytes"
 	"fmt"
+	"github.com/frostwind/l2go/loginserver/serverpackets"
 	"github.com/frostwind/l2go/packet"
 	"net"
 )
@@ -12,12 +12,9 @@ func handleConnection(conn net.Conn) {
 	fmt.Println("A client is trying to connect...")
 
 	fmt.Println("Building the Init packet...")
-	buffer := new(bytes.Buffer)
-	buffer.WriteByte(0x00)                       // Packet type: Init
-	buffer.Write([]byte{0x9c, 0x77, 0xed, 0x03}) // Session id?
-	buffer.Write([]byte{0x5a, 0x78, 0x00, 0x00}) // Protocol version : 785a
 
-	err := packet.Send(conn, buffer.Bytes(), false, false)
+	buffer := serverpackets.NewInitPacket()
+	err := packet.Send(conn, buffer, false, false)
 
 	if err != nil {
 		fmt.Println(err)
@@ -26,13 +23,26 @@ func handleConnection(conn net.Conn) {
 	}
 
 	for {
-		_, err := packet.Receive(conn)
+		p, err := packet.Receive(conn)
 
 		if err != nil {
 			fmt.Println(err)
 			fmt.Println("Closing the connection...")
 			conn.Close()
 			break
+		}
+
+		switch opcode := p.GetOpcode(); opcode {
+		case 00:
+			buffer := serverpackets.NewLoginOkPacket()
+			err := packet.Send(conn, buffer)
+
+			if err != nil {
+				fmt.Println(err)
+			}
+
+		default:
+			fmt.Println("Couldn't detect the packet type.")
 		}
 	}
 
