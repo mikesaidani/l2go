@@ -1,6 +1,7 @@
 package loginserver
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/frostwind/l2go/packet"
 	"net"
@@ -8,32 +9,31 @@ import (
 
 func handleConnection(conn net.Conn) {
 
-	packet_c := []byte{
-		0x00, 0x9c, 0x77, 0xed,
-		0x03, 0x5a, 0x78, 0x00,
-		0x00}
-
-	length := len(packet_c) + 2
-	buffer := make([]byte, length)
-
-	buffer[0] = byte(length & 0xff)
-	buffer[1] = byte((length >> 8) & 0xff)
-	copy(buffer[2:], packet_c)
-
 	fmt.Println("A client is trying to connect...")
-	fmt.Printf("Created an init packet[%d] = %X\n", len(buffer), buffer)
 
-	fmt.Println("Sending the Init packet...")
-	conn.Write([]byte(buffer))
+	fmt.Println("Building the Init packet...")
+	buffer := new(bytes.Buffer)
+	buffer.WriteByte(0x00)                       // Packet type: Init
+	buffer.Write([]byte{0x9c, 0x77, 0xed, 0x03}) // Session id?
+	buffer.Write([]byte{0x5a, 0x78, 0x00, 0x00}) // Protocol version : 785a
 
-	fmt.Println("Receiving the Init response")
+	err := packet.Send(conn, buffer.Bytes(), false, false)
+
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("Init packet sent.")
+	}
+
 	for {
-		received := make([]byte, 65537)
+		_, err := packet.Receive(conn)
 
-		_, _ = conn.Read(received)
-
-		fmt.Println("Decryption ..")
-		_, _ = packet.Decrypt(received)
+		if err != nil {
+			fmt.Println(err)
+			fmt.Println("Closing the connection...")
+			conn.Close()
+			break
+		}
 	}
 
 }
@@ -54,8 +54,9 @@ func Init() {
 		if err != nil {
 			fmt.Println("Couldn't accept the incoming connection.")
 			continue
+		} else {
+			go handleConnection(conn)
 		}
 
-		go handleConnection(conn)
 	}
 }

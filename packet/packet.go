@@ -1,12 +1,18 @@
 package packet
 
 import (
-	"github.com/frostwind/l2go/blowfish"
 	"fmt"
+	"github.com/frostwind/l2go/blowfish"
+	"net"
 )
 
+// A packet is composed of:
+// - A 2 bytes header (defining the size)
+// - An opcode describing the packet type
+// - Packet data
 type packet struct {
-	header [2]byte
+	header []byte
+	opcode byte
 	data   []byte
 }
 
@@ -18,74 +24,134 @@ func (e packetError) Error() string {
 	return fmt.Sprintf("%v", e.message)
 }
 
-func Decrypt(buffer []byte) (*packet, error) {
+func Receive(conn net.Conn) (*packet, error) {
 
 	// Init our packet struct
 	p := new(packet)
 
-	// First 2 bytes are the size
-	p.header[0] = buffer[0]
-	p.header[1] = buffer[1]
+	// Read the first two bytes to define the packet size
+	p.header = make([]byte, 2)
+	n, err := conn.Read(p.header)
+
+	if n != 2 || err != nil {
+		return &packet{}, packetError{"An error occured while reading the packet header."}
+	}
 
 	// Calculate the packet size
 	size := 0
 	size = size + int(p.header[0])
-	size = size + (int(p.header[1]) * 256)
+	size = size + int(p.header[1])*256
 
-	// Copy the packet body to data
-	p.data = buffer[2:size]
+	// Allocate the appropriate size for our data (size - 2 bytes used for the length
+	p.data = make([]byte, size-2)
 
-	if len(p.data) != size-2 {
-		return &packet{}, packetError{"Wrong packet size detected !"}
+	// Read the encrypted part of the packet
+	n, err = conn.Read(p.data)
+
+	if n != size-2 || err != nil {
+		return &packet{}, packetError{"An error occured while reading the packet data."}
 	}
 
+	// Print the raw packet
 	fmt.Printf("Raw packet : %X%X\n", p.header, p.data)
-	fmt.Printf("Header : %X\n", p.header)
-	fmt.Printf("Data : %X\n", p.data)
 
-	decrypted := blowfishDecrypt(p.data, []byte("[;'.]94-31==-%&@!^+]\000"))
-	fmt.Printf("Decrypted packet content : %X\n", decrypted)
+	// Decrypt the packet data using the blowfish key
+	p.data, err = blowfishDecrypt(p.data, []byte("[;'.]94-31==-%&@!^+]\000"))
 
-	if check := checksum(decrypted); check {
-		fmt.Println("checksum ok.")
-	} else {
-		fmt.Println("the checksum doesn't look right...")
+	if err != nil {
+		return &packet{}, packetError{"An error occured while decrypting the packet data."}
 	}
+
+	// Verify our checksum...
+	if check := checksum(p.data); check {
+		fmt.Printf("Decrypted packet content : %X\n", p.data)
+		fmt.Println("Packet checksum ok")
+	} else {
+		return &packet{}, packetError{"The packet checksum doesn't look right..."}
+	}
+
+	// Extract the op code
+	p.opcode = p.data[0]
 
 	return p, nil
 }
 
+func Send(conn net.Conn, data []byte, params ...bool) error {
+
+	// Initialize our parameters
+	var doChecksum, doBlowfish bool = true, true
+
+	// Should we skip the checksum?
+	if len(params) >= 1 && params[0] == false {
+		doChecksum = false
+	}
+
+	// Should we skip the blowfish encryption?
+	if len(params) >= 2 && params[1] == false {
+		doBlowfish = false
+	}
+
+	// Add the packet length
+	length := len(data) + 2
+	header := []byte{byte(length) & 0xff, byte(length>>8) & 0xff}
+	data = append(header, data...)
+
+	if doChecksum == true {
+		checksum(data)
+	}
+
+	if doBlowfish == true {
+
+	}
+
+	_, err := conn.Write(data)
+
+	if err != nil {
+		return packetError{"The packet couldn't be sent."}
+	}
+
+	return nil
+}
+
 func checksum(raw []byte) bool {
+
 	var chksum int = 0
 	count := len(raw) - 8
 	i := 0
+
 	for i = 0; i < count; i += 4 {
-		var ecx int = int(raw[i] & 0xff)
-		ecx |= (int(raw[i+1]) << 8) & 0xff00
-		ecx |= (int(raw[i+2]) << 0x10) & 0xff0000
-		ecx |= (int(raw[i+3]) << 0x18) & 0xff000000
+		var ecx int = int(raw[i])
+		ecx |= int(raw[i+1]) << 8
+		ecx |= int(raw[i+2]) << 0x10
+		ecx |= int(raw[i+3]) << 0x18
 		chksum ^= ecx
 	}
 
-	var ecx int = int(raw[i]) & 0xff
-	ecx |= (int(raw[i+1]) << 8) & 0xff00
-	ecx |= (int(raw[i+2]) << 0x10) & 0xff0000
-	ecx |= (int(raw[i+3]) << 0x18) & 0xff000000
+	var ecx int = int(raw[i])
+	ecx |= int(raw[i+1]) << 8
+	ecx |= int(raw[i+2]) << 0x10
+	ecx |= int(raw[i+3]) << 0x18
 
-	raw[i] = (byte)(chksum & 0xff)
-	raw[i+1] = (byte)(chksum >> 0x08 & 0xff)
-	raw[i+2] = (byte)(chksum >> 0x10 & 0xff)
-	raw[i+3] = (byte)(chksum >> 0x18 & 0xff)
+	raw[i] = byte(chksum)
+	raw[i+1] = byte(chksum >> 0x08)
+	raw[i+2] = byte(chksum >> 0x10)
+	raw[i+3] = byte(chksum >> 0x18)
 
 	return ecx == chksum
 }
 
-func blowfishDecrypt(encrypted, key []byte) []byte {
-	// create the cipher
-	dcipher, err := blowfish.NewCipher(key)
+func blowfishDecrypt(encrypted, key []byte) ([]byte, error) {
+
+	// Initialize our cipher
+	cipher, err := blowfish.NewCipher(key)
+
 	if err != nil {
-		// fix this.
-		panic(err)
+		return nil, packetError{"Couldn't initialize the blowfish cipher"}
+	}
+
+	// Check if the encrypted data is a multiple of our block size
+	if len(encrypted)%8 != 0 {
+		return nil, packetError{"The encrypted data is not a multiple of the block size"}
 	}
 
 	count := len(encrypted) / 8
@@ -93,8 +159,8 @@ func blowfishDecrypt(encrypted, key []byte) []byte {
 	decrypted := make([]byte, len(encrypted))
 
 	for i := 0; i < count; i++ {
-		dcipher.Decrypt(decrypted[i*8:], encrypted[i*8:])
+		cipher.Decrypt(decrypted[i*8:], encrypted[i*8:])
 	}
 
-	return decrypted
+	return decrypted, nil
 }
