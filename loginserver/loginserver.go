@@ -2,8 +2,8 @@ package loginserver
 
 import (
 	"fmt"
+	"github.com/frostwind/l2go/loginserver/packet"
 	"github.com/frostwind/l2go/loginserver/serverpackets"
-	"github.com/frostwind/l2go/packet"
 	"net"
 )
 
