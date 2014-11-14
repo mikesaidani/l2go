@@ -31,17 +31,7 @@ func (p *packet) GetData() []byte {
 	return p.data[1:]
 }
 
-func Receive(conn net.Conn, params ...bool) (*packet, error) {
-
-	var key []byte = []byte{0x94, 0x35, 0x00, 0x00, 0xa1, 0x6c, 0x54, 0x87}
-
-	// Initialize our parameters
-	var doXor bool = true
-
-	// Should we skip the checksum?
-	if len(params) == 1 && params[0] == false {
-		doXor = false
-	}
+func Receive(conn net.Conn, key []byte) (*packet, error) {
 
 	// Init our packet struct
 	p := new(packet)
@@ -72,7 +62,7 @@ func Receive(conn net.Conn, params ...bool) (*packet, error) {
 	// Print the raw packet
 	fmt.Printf("Raw packet : %X%X\n", p.header, p.data)
 
-	if doXor == true {
+	if key != nil {
 		// Decrypt the packet data using the blowfish key
 		xorDecrypt(p.data, key)
 
@@ -90,19 +80,9 @@ func Receive(conn net.Conn, params ...bool) (*packet, error) {
 	return p, nil
 }
 
-func Send(conn net.Conn, data []byte, params ...bool) error {
+func Send(conn net.Conn, data, key []byte) error {
 
-	var key []byte = []byte{0x94, 0x35, 0x00, 0x00, 0xa1, 0x6c, 0x54, 0x87}
-
-	// Initialize our parameters
-	var doXor bool = true
-
-	// Should we skip the checksum?
-	if len(params) == 1 && params[0] == false {
-		doXor = false
-	}
-
-	if doXor == true {
+	if key != nil {
 		// Finally do the checksum
 		xorEncrypt(data, key)
 	}

@@ -19,8 +19,12 @@ func handleConnection(conn net.Conn) {
 
 	fmt.Println("A client is trying to connect...")
 
+  // Init our keys
+  var inputKey []byte = []byte{0x94, 0x35, 0x00, 0x00, 0xa1, 0x6c, 0x54, 0x87}
+  var outputKey []byte = []byte{0x94, 0x35, 0x00, 0x00, 0xa1, 0x6c, 0x54, 0x87}
+
 	// Receive ProtocolVersion
-	p, err := packet.Receive(conn, false)
+	p, err := packet.Receive(conn, nil)
 
 	if err != nil {
 		fmt.Println(err)
@@ -38,7 +42,7 @@ func handleConnection(conn net.Conn) {
 	fmt.Println("Sending the Xor Key to the client...")
 
 	buffer := serverpackets.NewCryptInitPacket()
-	err = packet.Send(conn, buffer, false)
+	err = packet.Send(conn, buffer, nil)
 
 	if err != nil {
 		fmt.Println(err)
@@ -47,7 +51,7 @@ func handleConnection(conn net.Conn) {
 	}
 
 	for {
-		_, err := packet.Receive(conn)
+		_, err := packet.Receive(conn, inputKey)
 
 		if err != nil {
 			fmt.Println(err)
@@ -61,7 +65,7 @@ func handleConnection(conn net.Conn) {
 			fmt.Println("Client is requesting login to the Game Server")
 
 			buffer := serverpackets.NewCharListPacket()
-			err := packet.Send(conn, buffer)
+			err := packet.Send(conn, buffer, outputKey)
 
 			if err != nil {
 				fmt.Println(err)
