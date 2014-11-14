@@ -2,11 +2,18 @@ package gameserver
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"github.com/frostwind/l2go/gameserver/packet"
 	"github.com/frostwind/l2go/gameserver/serverpackets"
 	"net"
 )
+
+func read_int32(data []byte) (ret int32) {
+	buf := bytes.NewBuffer(data)
+	binary.Read(buf, binary.LittleEndian, &ret)
+	return
+}
 
 func handleConnection(conn net.Conn) {
 
@@ -21,7 +28,12 @@ func handleConnection(conn net.Conn) {
 		conn.Close()
 	}
 
-	fmt.Printf("Protocol version : %X\n", p.GetData())
+	protocolVersion := read_int32(p.GetData())
+
+	if protocolVersion < 419 {
+		fmt.Println("Wrong protocol version ! <Min is 419>")
+		conn.Close()
+	}
 
 	fmt.Println("Sending the Xor Key to the client...")
 
@@ -47,6 +59,13 @@ func handleConnection(conn net.Conn) {
 		switch opcode := p.GetOpcode(); opcode {
 		case 00:
 			fmt.Println("Client is requesting login to the Game Server")
+
+			buffer := serverpackets.NewCharListPacket()
+			err := packet.Send(conn, buffer)
+
+			if err != nil {
+				fmt.Println(err)
+			}
 
 		default:
 			fmt.Println("Couldn't detect the packet type.")
