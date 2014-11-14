@@ -19,9 +19,9 @@ func handleConnection(conn net.Conn) {
 
 	fmt.Println("A client is trying to connect...")
 
-  // Init our keys
-  var inputKey []byte = []byte{0x94, 0x35, 0x00, 0x00, 0xa1, 0x6c, 0x54, 0x87}
-  var outputKey []byte = []byte{0x94, 0x35, 0x00, 0x00, 0xa1, 0x6c, 0x54, 0x87}
+	// Init our keys
+	var inputKey []byte = []byte{0x94, 0x35, 0x00, 0x00, 0xa1, 0x6c, 0x54, 0x87}
+	var outputKey []byte = []byte{0x94, 0x35, 0x00, 0x00, 0xa1, 0x6c, 0x54, 0x87}
 
 	// Receive ProtocolVersion
 	p, err := packet.Receive(conn, nil)
@@ -61,7 +61,7 @@ func handleConnection(conn net.Conn) {
 		}
 
 		switch opcode := p.GetOpcode(); opcode {
-		case 00:
+		case 0x00:
 			fmt.Println("Client is requesting login to the Game Server")
 
 			buffer := serverpackets.NewCharListPacket()
@@ -70,6 +70,9 @@ func handleConnection(conn net.Conn) {
 			if err != nil {
 				fmt.Println(err)
 			}
+
+		case 0x0e:
+			fmt.Println("Client is requesting character creation template")
 
 		default:
 			fmt.Println("Couldn't detect the packet type.")
