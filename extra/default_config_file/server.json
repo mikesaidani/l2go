@@ -1,0 +1,37 @@
+{
+  "loginserver": {
+    "host": "127.0.0.1",
+    "autoCreate": true,
+    "database": {
+      "name": "l2go-login",
+      "host": "127.0.0.1",
+      "port": 27017,
+      "user": "",
+      "password": ""
+    } 
+  },
+
+  "gameservers": [
+    {
+      "name": "Bartz",
+      "secret": "CHANGE_ME_PLEASE",
+      "internalIP": "127.0.0.1",
+      "externalIP": "192.168.1.2",
+      "port": "7777",
+
+      "database": {
+        "name": "l2go-server",
+        "host": "127.0.0.1",
+        "port": 27017,
+        "user": "",
+        "password": ""
+      },
+
+      "cache": {
+        "host": "127.0.0.1",
+        "port": 6379,
+        "password": ""
+      }
+    }    
+  ]
+}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/frostwind/l2go/config"
 	"github.com/frostwind/l2go/gameserver/packet"
 	"github.com/frostwind/l2go/gameserver/serverpackets"
 	"net"
@@ -81,15 +82,14 @@ func handleConnection(conn net.Conn) {
 
 }
 
-func Init() {
-	ln, err := net.Listen("tcp", ":7777")
+func Init(conf config.GameServerConfigObject) {
+	ln, err := net.Listen("tcp", ":"+conf.GameServer.Port)
 	defer ln.Close()
 
 	if err != nil {
 		fmt.Println("Couldn't initialize the Game Server")
 	} else {
-		fmt.Println("Game Server initialized.")
-		fmt.Println("Listening on 127.0.0.1:7777.")
+		fmt.Printf("Game Server listening on port %s", conf.GameServer.Port)
 	}
 
 	for {
@@ -100,6 +100,5 @@ func Init() {
 		} else {
 			go handleConnection(conn)
 		}
-
 	}
 }

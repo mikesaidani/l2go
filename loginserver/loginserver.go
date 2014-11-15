@@ -2,6 +2,7 @@ package loginserver
 
 import (
 	"fmt"
+	"github.com/frostwind/l2go/config"
 	"github.com/frostwind/l2go/loginserver/packet"
 	"github.com/frostwind/l2go/loginserver/serverpackets"
 	"net"
@@ -10,8 +11,6 @@ import (
 func handleConnection(conn net.Conn) {
 
 	fmt.Println("A client is trying to connect...")
-
-	fmt.Println("Building the Init packet...")
 
 	buffer := serverpackets.NewInitPacket()
 	err := packet.Send(conn, buffer, false, false)
@@ -68,15 +67,14 @@ func handleConnection(conn net.Conn) {
 
 }
 
-func Init() {
+func Init(conf config.ConfigObject) {
 	ln, err := net.Listen("tcp", ":2106")
 	defer ln.Close()
 
 	if err != nil {
 		fmt.Println("Couldn't initialize the Login Server")
 	} else {
-		fmt.Println("Login Server initialized.")
-		fmt.Println("Listening on 127.0.0.1:2106.")
+		fmt.Println("Login Server listening on port 2106")
 	}
 
 	for {
@@ -87,6 +85,5 @@ func Init() {
 		} else {
 			go handleConnection(conn)
 		}
-
 	}
 }
