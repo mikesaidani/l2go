@@ -57,7 +57,6 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 			err := accounts.Find(bson.M{"username": requestAuthLogin.Username}).One(&account)
 
 			if err != nil {
-				fmt.Println("Account not found !")
 
 				if conf.LoginServer.AutoCreate == true {
 					hashedPassword, err := bcrypt.GenerateFromPassword([]byte(requestAuthLogin.Password), 10)
@@ -76,7 +75,9 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 							buffer = serverpackets.NewLoginOkPacket()
 						}
 					}
-
+				} else {
+					fmt.Println("Account not found !")
+					buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_USER_OR_PASS_WRONG)
 				}
 			} else {
 				// Account exists; Is the password ok?
@@ -87,7 +88,12 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 
 					buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_USER_OR_PASS_WRONG)
 				} else {
-					buffer = serverpackets.NewLoginOkPacket()
+
+					if account.AccessLevel < 50 {
+						buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_ACCESS_FAILED)
+					} else {
+						buffer = serverpackets.NewLoginOkPacket()
+					}
 
 				}
 			}
