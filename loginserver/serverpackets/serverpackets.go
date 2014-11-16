@@ -4,6 +4,13 @@ import (
 	"bytes"
 )
 
+const (
+	REASON_ACCOUNT_IN_USE     = 0x07
+	REASON_ACCESS_FAILED      = 0x04
+	REASON_USER_OR_PASS_WRONG = 0x03
+	REASON_SYSTEM_ERROR       = 0x01
+)
+
 func NewInitPacket() []byte {
 
 	buffer := new(bytes.Buffer)
@@ -26,6 +33,18 @@ func NewLoginOkPacket() []byte {
 	buffer.WriteByte(0x00)
 	buffer.WriteByte(0x00)
 	buffer.WriteByte(0x02)
+
+	return buffer.Bytes()
+}
+
+func NewLoginFailPacket(reason byte) []byte {
+
+	buffer := new(bytes.Buffer)
+	buffer.WriteByte(0x01) // Packet type: LoginFail
+	buffer.WriteByte(reason)
+	buffer.WriteByte(0x00)
+	buffer.WriteByte(0x00)
+	buffer.WriteByte(0x00)
 
 	return buffer.Bytes()
 }

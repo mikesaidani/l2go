@@ -14,7 +14,7 @@ var defaultServerConfig = `{
     "database": {
       "name": "l2go-login",
       "host": "127.0.0.1",
-      "port": 27017,
+      "port": "27017",
       "user": "",
       "password": ""
     } 
@@ -31,14 +31,14 @@ var defaultServerConfig = `{
       "database": {
         "name": "l2go-server",
         "host": "127.0.0.1",
-        "port": 27017,
+        "port": "27017",
         "user": "",
         "password": ""
       },
 
       "cache": {
         "host": "127.0.0.1",
-        "port": 6379,
+        "port": "6379",
         "password": ""
       }
     }    
@@ -58,7 +58,7 @@ type GameServerConfigObject struct {
 type DatabaseType struct {
 	Name     string
 	Host     string
-	Port     int
+	Port     string
 	User     string
 	Password string
 }
@@ -66,7 +66,7 @@ type DatabaseType struct {
 type CacheType struct {
 	Index    int
 	Host     string
-	Port     int
+	Port     string
 	Password string
 }
 

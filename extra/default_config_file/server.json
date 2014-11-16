@@ -5,7 +5,7 @@
     "database": {
       "name": "l2go-login",
       "host": "127.0.0.1",
-      "port": 27017,
+      "port": "27017",
       "user": "",
       "password": ""
     } 
@@ -22,14 +22,14 @@
       "database": {
         "name": "l2go-server",
         "host": "127.0.0.1",
-        "port": 27017,
+        "port": "27017",
         "user": "",
         "password": ""
       },
 
       "cache": {
         "host": "127.0.0.1",
-        "port": 6379,
+        "port": "6379",
         "password": ""
       }
     }    
