@@ -6,7 +6,6 @@ type RequestAuthLogin struct {
 }
 
 func NewRequestAuthLogin(request []byte) RequestAuthLogin {
-
 	var result RequestAuthLogin
 
 	result.Username = string(request[:14])

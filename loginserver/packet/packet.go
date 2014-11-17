@@ -33,8 +33,6 @@ func (p *packet) GetData() []byte {
 }
 
 func Receive(conn net.Conn) (*packet, error) {
-
-	// Init our packet struct
 	p := new(packet)
 
 	// Read the first two bytes to define the packet size
@@ -85,8 +83,6 @@ func Receive(conn net.Conn) (*packet, error) {
 }
 
 func Send(conn net.Conn, data []byte, params ...bool) error {
-
-	// Initialize our parameters
 	var doChecksum, doBlowfish bool = true, true
 
 	// Should we skip the checksum?
@@ -127,7 +123,7 @@ func Send(conn net.Conn, data []byte, params ...bool) error {
 
 	// Add the packet length
 	length := len(data) + 2
-	header := []byte{byte(length) & 0xff, byte(length>>8) & 0xff}
+	header := []byte{byte(length), byte(length>>8)}
 	data = append(header, data...)
 
 	_, err := conn.Write(data)
@@ -140,7 +136,6 @@ func Send(conn net.Conn, data []byte, params ...bool) error {
 }
 
 func checksum(raw []byte) bool {
-
 	var chksum int = 0
 	count := len(raw) - 8
 	i := 0
@@ -167,8 +162,6 @@ func checksum(raw []byte) bool {
 }
 
 func blowfishDecrypt(encrypted, key []byte) ([]byte, error) {
-
-	// Initialize our cipher
 	cipher, err := blowfish.NewCipher(key)
 
 	if err != nil {
@@ -192,8 +185,6 @@ func blowfishDecrypt(encrypted, key []byte) ([]byte, error) {
 }
 
 func blowfishEncrypt(decrypted, key []byte) ([]byte, error) {
-
-	// Initialize our cipher
 	cipher, err := blowfish.NewCipher(key)
 
 	if err != nil {

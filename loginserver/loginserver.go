@@ -19,7 +19,6 @@ type Account struct {
 }
 
 func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Session) {
-
 	fmt.Println("A client is trying to connect...")
 
 	buffer := serverpackets.NewInitPacket()
@@ -43,7 +42,6 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 
 		switch opcode := p.GetOpcode(); opcode {
 		case 00:
-
 			// reponse buffer
 			var buffer []byte
 
@@ -132,8 +130,6 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 }
 
 func Init(conf config.ConfigObject) {
-
-	// Database setup
 	session, err := mgo.Dial(conf.LoginServer.Database.Host + ":" + conf.LoginServer.Database.Port)
 	if err != nil {
 		panic("Couldn't connect to the database server")
@@ -142,7 +138,6 @@ func Init(conf config.ConfigObject) {
 	}
 	defer session.Close()
 
-	// Socket Setup
 	ln, err := net.Listen("tcp", ":2106")
 	defer ln.Close()
 
@@ -152,7 +147,6 @@ func Init(conf config.ConfigObject) {
 		fmt.Println("Login Server listening on port 2106")
 	}
 
-	// Connections handling
 	for {
 		conn, err := ln.Accept()
 		if err != nil {

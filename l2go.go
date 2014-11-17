@@ -30,7 +30,7 @@ func main() {
 			gameServerConfig.GameServer = globalConfig.GameServers[gameServerId-1]
 			gameserver.Init(gameServerConfig)
 		} else {
-			fmt.Println("Wrong server !!")
+			fmt.Println("No configuration found for the specified server.")
 		}
 
 	}
