@@ -42,7 +42,7 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 
 		switch opcode := p.GetOpcode(); opcode {
 		case 00:
-			// reponse buffer
+			// response buffer
 			var buffer []byte
 
 			requestAuthLogin := clientpackets.NewRequestAuthLogin(p.GetData())
