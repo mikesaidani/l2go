@@ -10,6 +10,7 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"net"
+	"strconv"
 )
 
 type Account struct {
@@ -115,7 +116,7 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 			}
 
 		case 05:
-			buffer := serverpackets.NewServerListPacket()
+			buffer := serverpackets.NewServerListPacket(conf.GameServers, conn.RemoteAddr().String())
 			err := packet.Send(conn, buffer)
 
 			if err != nil {
@@ -130,7 +131,7 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 }
 
 func Init(conf config.ConfigObject) {
-	session, err := mgo.Dial(conf.LoginServer.Database.Host + ":" + conf.LoginServer.Database.Port)
+	session, err := mgo.Dial(conf.LoginServer.Database.Host + ":" + strconv.Itoa(conf.LoginServer.Database.Port))
 	if err != nil {
 		panic("Couldn't connect to the database server")
 	} else {

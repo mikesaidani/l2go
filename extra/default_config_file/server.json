@@ -5,7 +5,7 @@
     "database": {
       "name": "l2go-login",
       "host": "127.0.0.1",
-      "port": "27017",
+      "port": 27017,
       "user": "",
       "password": ""
     } 
@@ -17,20 +17,25 @@
       "secret": "CHANGE_ME_PLEASE",
       "internalIP": "127.0.0.1",
       "externalIP": "192.168.1.2",
-      "port": "7777",
+      "port": 7777,
 
       "database": {
         "name": "l2go-server",
         "host": "127.0.0.1",
-        "port": "27017",
+        "port": 27017,
         "user": "",
         "password": ""
       },
 
       "cache": {
         "host": "127.0.0.1",
-        "port": "6379",
+        "port": 6379,
         "password": ""
+      },
+
+      "options": {
+        "maxPlayers": 10000,
+        "testing": false
       }
     }    
   ]

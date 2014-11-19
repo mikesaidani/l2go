@@ -2,7 +2,7 @@ package serverpackets
 
 import (
 	"github.com/frostwind/l2go/packets"
-	"rand"
+	"crypto/rand"
 )
 
 func NewLoginOkPacket() []byte {

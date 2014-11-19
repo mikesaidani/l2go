@@ -8,6 +8,7 @@ import (
 	"github.com/frostwind/l2go/gameserver/packet"
 	"github.com/frostwind/l2go/gameserver/serverpackets"
 	"net"
+	"strconv"
 )
 
 func read_int32(data []byte) (ret int32) {
@@ -83,13 +84,13 @@ func handleConnection(conn net.Conn) {
 }
 
 func Init(conf config.GameServerConfigObject) {
-	ln, err := net.Listen("tcp", ":"+conf.GameServer.Port)
+	ln, err := net.Listen("tcp", ":"+strconv.Itoa(conf.GameServer.Port))
 	defer ln.Close()
 
 	if err != nil {
 		fmt.Println("Couldn't initialize the Game Server")
 	} else {
-		fmt.Printf("Game Server listening on port %s", conf.GameServer.Port)
+		fmt.Printf("Game Server listening on port %s", strconv.Itoa(conf.GameServer.Port))
 	}
 
 	for {

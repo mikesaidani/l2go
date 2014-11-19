@@ -14,7 +14,7 @@ var defaultServerConfig = `{
     "database": {
       "name": "l2go-login",
       "host": "127.0.0.1",
-      "port": "27017",
+      "port": 27017,
       "user": "",
       "password": ""
     } 
@@ -26,63 +26,73 @@ var defaultServerConfig = `{
       "secret": "CHANGE_ME_PLEASE",
       "internalIP": "127.0.0.1",
       "externalIP": "192.168.1.2",
-      "port": "7777",
+      "port": 7777,
 
       "database": {
         "name": "l2go-server",
         "host": "127.0.0.1",
-        "port": "27017",
+        "port": 27017,
         "user": "",
         "password": ""
       },
 
       "cache": {
         "host": "127.0.0.1",
-        "port": "6379",
+        "port": 6379,
         "password": ""
+      },
+
+      "options": {
+        "maxPlayers": 10000,
+        "testing": false
       }
     }    
   ]
 }`
 
 type ConfigObject struct {
-	LoginServer LoginserverType
-	GameServers []GameserverType
+	LoginServer LoginServerType
+	GameServers []GameServerType
 }
 
 type GameServerConfigObject struct {
-	LoginServer LoginserverType
-	GameServer  GameserverType
+	LoginServer LoginServerType
+	GameServer  GameServerType
 }
 
 type DatabaseType struct {
 	Name     string
 	Host     string
-	Port     string
+	Port     int
 	User     string
 	Password string
 }
 
 type CacheType struct {
-	Index    int
 	Host     string
-	Port     string
+	Port     int
 	Password string
 }
 
-type LoginserverType struct {
+type LoginServerType struct {
 	Host       string
 	AutoCreate bool
 	Database   DatabaseType
 }
 
-type GameserverType struct {
+type GameServerType struct {
 	Name       string
 	InternalIP string
 	ExternalIP string
-	Port       string
+	Port       int
 	Database   DatabaseType
 	Cache      CacheType
+	Options    OptionsType
+}
+
+type OptionsType struct {
+	MaxPlayers uint16
+	Testing    bool
 }
 
 func Read() ConfigObject {

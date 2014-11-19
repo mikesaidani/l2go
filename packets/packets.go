@@ -21,6 +21,10 @@ func (b *Buffer) WriteUInt16(value uint16) {
 	binary.Write(b, binary.LittleEndian, value)
 }
 
+func (b *Buffer) WriteUInt8(value uint8) {
+	binary.Write(b, binary.LittleEndian, value)
+}
+
 func (b *Buffer) WriteFloat64(value float64) {
 	binary.Write(b, binary.LittleEndian, value)
 }
