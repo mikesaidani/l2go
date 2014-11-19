@@ -104,9 +104,9 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 			}
 
 		case 02:
-			serverId := p.GetData()[4+4+1] // Skip the sessionId (2*4bytes) and grab the serverId
+			requestPlay := clientpackets.NewRequestPlay(p.GetData())
 
-			fmt.Printf("The client wants to connect to the server : %X\n", serverId)
+			fmt.Printf("The client wants to connect to the server : %d\n", requestPlay.ServerID)
 
 			buffer := serverpackets.NewPlayOkPacket()
 			err := packet.Send(conn, buffer)

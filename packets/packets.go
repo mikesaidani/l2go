@@ -32,3 +32,85 @@ func (b *Buffer) WriteFloat64(value float64) {
 func (b *Buffer) WriteFloat32(value float32) {
 	binary.Write(b, binary.LittleEndian, value)
 }
+
+type Reader struct {
+	*bytes.Reader
+}
+
+func NewReader(buffer []byte) *Reader {
+	return &Reader{bytes.NewReader(buffer)}
+}
+
+func (r *Reader) ReadBytes(number int) []byte {
+	buffer := make([]byte, number)
+	n, _ := r.Read(buffer)
+	if n < number {
+		return []byte{}
+	}
+
+	return buffer
+}
+
+func (r *Reader) ReadUInt64() uint64 {
+	var result uint64
+
+	buffer := make([]byte, 8)
+	n, _ := r.Read(buffer)
+	if n < 8 {
+		return 0
+	}
+
+	buf := bytes.NewBuffer(buffer)
+
+	binary.Read(buf, binary.LittleEndian, &result)
+
+	return result
+}
+
+func (r *Reader) ReadUInt32() uint32 {
+	var result uint32
+
+	buffer := make([]byte, 4)
+	n, _ := r.Read(buffer)
+	if n < 4 {
+		return 0
+	}
+
+	buf := bytes.NewBuffer(buffer)
+
+	binary.Read(buf, binary.LittleEndian, &result)
+
+	return result
+}
+
+func (r *Reader) ReadUInt16() uint16 {
+	var result uint16
+
+	buffer := make([]byte, 2)
+	n, _ := r.Read(buffer)
+	if n < 2 {
+		return 0
+	}
+
+	buf := bytes.NewBuffer(buffer)
+
+	binary.Read(buf, binary.LittleEndian, &result)
+
+	return result
+}
+
+func (r *Reader) ReadUInt8() uint8 {
+	var result uint8
+
+	buffer := make([]byte, 1)
+	n, _ := r.Read(buffer)
+	if n < 1 {
+		return 0
+	}
+
+	buf := bytes.NewBuffer(buffer)
+
+	binary.Read(buf, binary.LittleEndian, &result)
+
+	return result
+}
