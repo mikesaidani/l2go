@@ -53,7 +53,7 @@ func handleConnection(conn net.Conn) {
 	}
 
 	for {
-		_, err := packet.Receive(conn, inputKey)
+		p, err := packet.Receive(conn, inputKey)
 
 		if err != nil {
 			fmt.Println(err)
@@ -63,7 +63,7 @@ func handleConnection(conn net.Conn) {
 		}
 
 		switch opcode := p.GetOpcode(); opcode {
-		case 0x00:
+		case 0x08:
 			fmt.Println("Client is requesting login to the Game Server")
 
 			buffer := serverpackets.NewCharListPacket()
@@ -75,6 +75,13 @@ func handleConnection(conn net.Conn) {
 
 		case 0x0e:
 			fmt.Println("Client is requesting character creation template")
+
+			buffer := serverpackets.NewCharTemplatePacket()
+			err := packet.Send(conn, buffer, outputKey)
+
+			if err != nil {
+				fmt.Println(err)
+			}
 
 		default:
 			fmt.Println("Couldn't detect the packet type.")

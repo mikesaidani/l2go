@@ -2,6 +2,7 @@ package serverpackets
 
 import (
 	"bytes"
+	"github.com/frostwind/l2go/packets"
 )
 
 func NewCryptInitPacket() []byte {
@@ -20,7 +21,16 @@ func NewCharListPacket() []byte {
 
 	buffer := new(bytes.Buffer)
 	buffer.WriteByte(0x1f)                       // Packet type: CharList
-	buffer.Write([]byte{0x00, 0x00, 0x00, 0x00}) // ?
+  buffer.Write([]byte{0x00, 0x00, 0x00, 0x00}) // TODO
+
+	return buffer.Bytes()
+}
+
+func NewCharTemplatePacket() []byte {
+
+	buffer := new(packets.Buffer)
+	buffer.WriteByte(0x23)   // Packet type: CharTemplate
+	buffer.WriteUInt32(0x00) // We don't actually need to send the template to the client
 
 	return buffer.Bytes()
 }
