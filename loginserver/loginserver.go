@@ -108,7 +108,12 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 
 			fmt.Printf("The client wants to connect to the server : %d\n", requestPlay.ServerID)
 
-			buffer := serverpackets.NewPlayOkPacket()
+      var buffer []byte
+      if len(conf.GameServers) >= int(requestPlay.ServerID) && conf.GameServers[requestPlay.ServerID-1].Options.Testing == false {
+        buffer = serverpackets.NewPlayOkPacket()
+      } else {
+        buffer = serverpackets.NewPlayFailPacket(serverpackets.REASON_ACCESS_FAILED)
+      }
 			err := packet.Send(conn, buffer)
 
 			if err != nil {
