@@ -5,7 +5,6 @@ import (
 )
 
 func NewCharTemplatePacket() []byte {
-
 	buffer := new(packets.Buffer)
 	buffer.WriteByte(0x23)   // Packet type: CharTemplate
 	buffer.WriteUInt32(0x00) // We don't actually need to send the template to the client

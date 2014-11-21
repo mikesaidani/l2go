@@ -114,3 +114,20 @@ func (r *Reader) ReadUInt8() uint8 {
 
 	return result
 }
+
+func (r *Reader) ReadString() string {
+	var result []byte
+  var first_byte, second_byte byte
+
+  for {
+    first_byte, _ = r.ReadByte()
+    second_byte, _ = r.ReadByte()
+    if first_byte == 0x00 && second_byte == 0x00 {
+      break
+    } else {
+      result = append(result, first_byte, second_byte)
+    }
+  }
+
+	return string(result)
+}

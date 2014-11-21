@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/frostwind/l2go/config"
+	"github.com/frostwind/l2go/gameserver/clientpackets"
 	"github.com/frostwind/l2go/gameserver/packet"
 	"github.com/frostwind/l2go/gameserver/serverpackets"
 	"net"
@@ -78,6 +79,27 @@ func handleConnection(conn net.Conn) {
 
 			buffer := serverpackets.NewCharTemplatePacket()
 			err := packet.Send(conn, buffer, outputKey)
+
+			if err != nil {
+				fmt.Println(err)
+			}
+
+		case 0x0b:
+			character := clientpackets.NewCharacterCreate(p.GetData())
+
+			fmt.Printf("Created a new character : %s\n", character.Name)
+
+			// ACK
+			buffer := serverpackets.NewCharCreateOkPacket()
+			err := packet.Send(conn, buffer, outputKey)
+
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			// Return to the character select screen
+			buffer = serverpackets.NewCharListPacket()
+			err = packet.Send(conn, buffer, outputKey)
 
 			if err != nil {
 				fmt.Println(err)
