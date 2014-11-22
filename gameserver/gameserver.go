@@ -39,7 +39,7 @@ func handleConnection(conn net.Conn) {
 
 	if protocolVersion < 419 {
 		fmt.Println("Wrong protocol version ! <Min is 419>")
-		conn.Close()
+		//conn.Close()
 	}
 
 	fmt.Println("Sending the Xor Key to the client...")

@@ -1,10 +1,11 @@
 package loginserver
 
 import (
-	"code.google.com/p/go.crypto/bcrypt"
 	"fmt"
+  "code.google.com/p/go.crypto/bcrypt"
 	"github.com/frostwind/l2go/config"
 	"github.com/frostwind/l2go/loginserver/clientpackets"
+	"github.com/frostwind/l2go/loginserver/models"
 	"github.com/frostwind/l2go/loginserver/packet"
 	"github.com/frostwind/l2go/loginserver/serverpackets"
 	"gopkg.in/mgo.v2"
@@ -13,17 +14,73 @@ import (
 	"strconv"
 )
 
-type Account struct {
-	Username    string `bson:username`
-	Password    string `bson:password`
-	AccessLevel uint8  `bson:access_level`
+type LoginServer struct {
+	clients            []*models.Client
+	database           *mgo.Database
+	config             config.ConfigObject
+	internalServerList []byte
+	externalServerList []byte
+	status             loginServerStatus
+	databaseSession    *mgo.Session
+	socket             net.Listener
 }
 
-func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Session) {
+type loginServerStatus struct {
+	SuccessfulLoginAttempts uint32
+	FailedLoginAttempts     uint32
+	HackAttempts            uint32
+}
+
+func New(cfg config.ConfigObject) *LoginServer {
+	return &LoginServer{config: cfg}
+}
+
+func (l *LoginServer) Init() {
+	var err error
+
+	// Connect to our database
+	l.databaseSession, err = mgo.Dial(l.config.LoginServer.Database.Host + ":" + strconv.Itoa(l.config.LoginServer.Database.Port))
+	if err != nil {
+		panic("Couldn't connect to the database server")
+	} else {
+		fmt.Println("Successfully connect to the database server")
+	}
+
+	// Select the appropriate database
+	l.database = l.databaseSession.DB(l.config.LoginServer.Database.Name)
+
+	l.socket, err = net.Listen("tcp", ":2106")
+	if err != nil {
+		fmt.Println("Couldn't initialize the Login Server")
+	} else {
+		fmt.Println("Login Server listening on port 2106")
+	}
+}
+
+func (l *LoginServer) Start() {
+	defer l.databaseSession.Close()
+	defer l.socket.Close()
+
+	for {
+		var err error
+		client := models.NewClient()
+		l.clients = append(l.clients, client)
+		client.Socket, err = l.socket.Accept()
+		if err != nil {
+			fmt.Println("Couldn't accept the incoming connection.")
+			continue
+		} else {
+			go l.handleClientPackets(client)
+		}
+	}
+}
+
+func (l *LoginServer) handleClientPackets(client *models.Client) {
 	fmt.Println("A client is trying to connect...")
+	defer client.Socket.Close()
 
 	buffer := serverpackets.NewInitPacket()
-	err := packet.Send(conn, buffer, false, false)
+	err := packet.Send(client.Socket, buffer, false, false)
 
 	if err != nil {
 		fmt.Println(err)
@@ -32,12 +89,11 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 	}
 
 	for {
-		p, err := packet.Receive(conn)
+		p, err := packet.Receive(client.Socket)
 
 		if err != nil {
 			fmt.Println(err)
 			fmt.Println("Closing the connection...")
-			conn.Close()
 			break
 		}
 
@@ -50,28 +106,25 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 
 			fmt.Printf("User %s is trying to login\n", requestAuthLogin.Username)
 
-			accounts := session.DB(conf.LoginServer.Database.Name).C("accounts")
-
-			account := Account{}
-			err := accounts.Find(bson.M{"username": requestAuthLogin.Username}).One(&account)
+			accounts := l.database.C("accounts")
+			err := accounts.Find(bson.M{"username": requestAuthLogin.Username}).One(&client.Account)
 
 			if err != nil {
-
-				if conf.LoginServer.AutoCreate == true {
+				if l.config.LoginServer.AutoCreate == true {
 					hashedPassword, err := bcrypt.GenerateFromPassword([]byte(requestAuthLogin.Password), 10)
 					if err != nil {
 						fmt.Println("An error occured while trying to generate the password")
 
 						buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_SYSTEM_ERROR)
 					} else {
-						err = accounts.Insert(&Account{requestAuthLogin.Username, string(hashedPassword), 50})
+						err = accounts.Insert(&models.Account{requestAuthLogin.Username, string(hashedPassword), ACCESS_LEVEL_PLAYER})
 						if err != nil {
 							fmt.Printf("Couldn't create an account for the user %s\n", requestAuthLogin.Username)
 
 							buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_SYSTEM_ERROR)
 						} else {
 							fmt.Printf("Account successfully created for the user %s\n", requestAuthLogin.Username)
-							buffer = serverpackets.NewLoginOkPacket()
+							buffer = serverpackets.NewLoginOkPacket(client.SessionID)
 						}
 					}
 				} else {
@@ -80,7 +133,7 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 				}
 			} else {
 				// Account exists; Is the password ok?
-				err = bcrypt.CompareHashAndPassword([]byte(account.Password), []byte(requestAuthLogin.Password))
+				err = bcrypt.CompareHashAndPassword([]byte(client.Account.Password), []byte(requestAuthLogin.Password))
 
 				if err != nil {
 					fmt.Printf("Wrong password for the account %s\n", requestAuthLogin.Username)
@@ -88,16 +141,16 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 					buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_USER_OR_PASS_WRONG)
 				} else {
 
-					if account.AccessLevel < 50 {
-						buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_ACCESS_FAILED)
+					if client.Account.AccessLevel >= ACCESS_LEVEL_PLAYER {
+						buffer = serverpackets.NewLoginOkPacket(client.SessionID)
 					} else {
-						buffer = serverpackets.NewLoginOkPacket()
+						buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_ACCESS_FAILED)
 					}
 
 				}
 			}
 
-			err = packet.Send(conn, buffer)
+			err = packet.Send(client.Socket, buffer)
 
 			if err != nil {
 				fmt.Println(err)
@@ -108,21 +161,21 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 
 			fmt.Printf("The client wants to connect to the server : %d\n", requestPlay.ServerID)
 
-      var buffer []byte
-      if len(conf.GameServers) >= int(requestPlay.ServerID) && conf.GameServers[requestPlay.ServerID-1].Options.Testing == false {
-        buffer = serverpackets.NewPlayOkPacket()
-      } else {
-        buffer = serverpackets.NewPlayFailPacket(serverpackets.REASON_ACCESS_FAILED)
-      }
-			err := packet.Send(conn, buffer)
+			var buffer []byte
+			if len(l.config.GameServers) >= int(requestPlay.ServerID) && (l.config.GameServers[requestPlay.ServerID-1].Options.Testing == false || client.Account.AccessLevel > ACCESS_LEVEL_PLAYER) {
+				buffer = serverpackets.NewPlayOkPacket()
+			} else {
+				buffer = serverpackets.NewPlayFailPacket(serverpackets.REASON_ACCESS_FAILED)
+			}
+			err := packet.Send(client.Socket, buffer)
 
 			if err != nil {
 				fmt.Println(err)
 			}
 
 		case 05:
-			buffer := serverpackets.NewServerListPacket(conf.GameServers, conn.RemoteAddr().String())
-			err := packet.Send(conn, buffer)
+			buffer := serverpackets.NewServerListPacket(l.config.GameServers, client.Socket.RemoteAddr().String())
+			err := packet.Send(client.Socket, buffer)
 
 			if err != nil {
 				fmt.Println(err)
@@ -133,33 +186,4 @@ func handleConnection(conn net.Conn, conf config.ConfigObject, session *mgo.Sess
 		}
 	}
 
-}
-
-func Init(conf config.ConfigObject) {
-	session, err := mgo.Dial(conf.LoginServer.Database.Host + ":" + strconv.Itoa(conf.LoginServer.Database.Port))
-	if err != nil {
-		panic("Couldn't connect to the database server")
-	} else {
-		fmt.Println("Successfully connect to the database server")
-	}
-	defer session.Close()
-
-	ln, err := net.Listen("tcp", ":2106")
-	defer ln.Close()
-
-	if err != nil {
-		fmt.Println("Couldn't initialize the Login Server")
-	} else {
-		fmt.Println("Login Server listening on port 2106")
-	}
-
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			fmt.Println("Couldn't accept the incoming connection.")
-			continue
-		} else {
-			go handleConnection(conn, conf, session)
-		}
-	}
 }

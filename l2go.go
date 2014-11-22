@@ -21,7 +21,9 @@ func main() {
 	globalConfig := config.Read()
 
 	if mode == 0 {
-		loginserver.Init(globalConfig)
+    server := loginserver.New(globalConfig)
+    server.Init()
+    server.Start()
 	} else {
 		// Load the Game Server specific configuration
 		if gameServerId >= 1 && len(globalConfig.GameServers) >= gameServerId {
