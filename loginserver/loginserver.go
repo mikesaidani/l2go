@@ -1,8 +1,8 @@
 package loginserver
 
 import (
+	"code.google.com/p/go.crypto/bcrypt"
 	"fmt"
-  "code.google.com/p/go.crypto/bcrypt"
 	"github.com/frostwind/l2go/config"
 	"github.com/frostwind/l2go/loginserver/clientpackets"
 	"github.com/frostwind/l2go/loginserver/models"
@@ -12,6 +12,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"net"
 	"strconv"
+  "bytes"
 )
 
 type LoginServer struct {
@@ -163,7 +164,11 @@ func (l *LoginServer) handleClientPackets(client *models.Client) {
 
 			var buffer []byte
 			if len(l.config.GameServers) >= int(requestPlay.ServerID) && (l.config.GameServers[requestPlay.ServerID-1].Options.Testing == false || client.Account.AccessLevel > ACCESS_LEVEL_PLAYER) {
-				buffer = serverpackets.NewPlayOkPacket()
+        if !bytes.Equal(client.SessionID[:8], requestPlay.SessionID) {
+            buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_ACCESS_FAILED)
+        } else {
+          buffer = serverpackets.NewPlayOkPacket()
+        }
 			} else {
 				buffer = serverpackets.NewPlayFailPacket(serverpackets.REASON_ACCESS_FAILED)
 			}
@@ -174,7 +179,14 @@ func (l *LoginServer) handleClientPackets(client *models.Client) {
 			}
 
 		case 05:
-			buffer := serverpackets.NewServerListPacket(l.config.GameServers, client.Socket.RemoteAddr().String())
+			requestServerList := clientpackets.NewRequestServerList(p.GetData())
+
+      var buffer []byte
+      if !bytes.Equal(client.SessionID[:8], requestServerList.SessionID) {
+          buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_ACCESS_FAILED)
+      } else {
+        buffer = serverpackets.NewServerListPacket(l.config.GameServers, client.Socket.RemoteAddr().String())
+      }
 			err := packet.Send(client.Socket, buffer)
 
 			if err != nil {
