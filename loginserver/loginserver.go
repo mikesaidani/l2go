@@ -16,14 +16,14 @@ import (
 )
 
 type LoginServer struct {
-	clients            []*models.Client
-	database           *mgo.Database
-	config             config.ConfigObject
-	internalServerList []byte
-	externalServerList []byte
-	status             loginServerStatus
-	databaseSession    *mgo.Session
-	socket             net.Listener
+	clients             []*models.Client
+	database            *mgo.Database
+	config              config.ConfigObject
+	internalServersList []byte
+	externalServersList []byte
+	status              loginServerStatus
+	databaseSession     *mgo.Session
+	socket              net.Listener
 }
 
 type loginServerStatus struct {
@@ -135,7 +135,13 @@ func (l *LoginServer) handleClientPackets(client *models.Client) {
 
 							buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_SYSTEM_ERROR)
 						} else {
-							err = accounts.Insert(&models.Account{requestAuthLogin.Username, string(hashedPassword), ACCESS_LEVEL_PLAYER})
+              client.Account = models.Account{
+                Id: bson.NewObjectId(),
+                Username: requestAuthLogin.Username,
+                Password: string(hashedPassword),
+                AccessLevel: ACCESS_LEVEL_PLAYER}
+
+              err = accounts.Insert(&client.Account)
 							if err != nil {
 								fmt.Printf("Couldn't create an account for the user %s\n", requestAuthLogin.Username)
 								l.status.failedAccountCreation += 1
