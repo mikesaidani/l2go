@@ -1,6 +1,7 @@
 package loginserver
 
 import (
+	"bytes"
 	"code.google.com/p/go.crypto/bcrypt"
 	"fmt"
 	"github.com/frostwind/l2go/config"
@@ -12,7 +13,6 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"net"
 	"strconv"
-  "bytes"
 )
 
 type LoginServer struct {
@@ -27,9 +27,11 @@ type LoginServer struct {
 }
 
 type loginServerStatus struct {
-	SuccessfulLoginAttempts uint32
-	FailedLoginAttempts     uint32
-	HackAttempts            uint32
+	successfulAccountCreation uint32
+	failedAccountCreation     uint32
+	successfulLogins          uint32
+	failedLogins              uint32
+	hackAttempts              uint32
 }
 
 func New(cfg config.ConfigObject) *LoginServer {
@@ -115,21 +117,27 @@ func (l *LoginServer) handleClientPackets(client *models.Client) {
 					hashedPassword, err := bcrypt.GenerateFromPassword([]byte(requestAuthLogin.Password), 10)
 					if err != nil {
 						fmt.Println("An error occured while trying to generate the password")
+						l.status.failedAccountCreation += 1
 
 						buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_SYSTEM_ERROR)
 					} else {
 						err = accounts.Insert(&models.Account{requestAuthLogin.Username, string(hashedPassword), ACCESS_LEVEL_PLAYER})
 						if err != nil {
 							fmt.Printf("Couldn't create an account for the user %s\n", requestAuthLogin.Username)
+              l.status.failedAccountCreation += 1
 
 							buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_SYSTEM_ERROR)
 						} else {
 							fmt.Printf("Account successfully created for the user %s\n", requestAuthLogin.Username)
+              l.status.successfulAccountCreation += 1
+
 							buffer = serverpackets.NewLoginOkPacket(client.SessionID)
 						}
 					}
 				} else {
 					fmt.Println("Account not found !")
+          l.status.failedLogins += 1
+
 					buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_USER_OR_PASS_WRONG)
 				}
 			} else {
@@ -138,13 +146,18 @@ func (l *LoginServer) handleClientPackets(client *models.Client) {
 
 				if err != nil {
 					fmt.Printf("Wrong password for the account %s\n", requestAuthLogin.Username)
+          l.status.failedLogins += 1
 
 					buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_USER_OR_PASS_WRONG)
 				} else {
 
 					if client.Account.AccessLevel >= ACCESS_LEVEL_PLAYER {
+            l.status.successfulLogins += 1
+
 						buffer = serverpackets.NewLoginOkPacket(client.SessionID)
 					} else {
+            l.status.failedLogins += 1
+
 						buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_ACCESS_FAILED)
 					}
 
@@ -164,12 +177,16 @@ func (l *LoginServer) handleClientPackets(client *models.Client) {
 
 			var buffer []byte
 			if len(l.config.GameServers) >= int(requestPlay.ServerID) && (l.config.GameServers[requestPlay.ServerID-1].Options.Testing == false || client.Account.AccessLevel > ACCESS_LEVEL_PLAYER) {
-        if !bytes.Equal(client.SessionID[:8], requestPlay.SessionID) {
-            buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_ACCESS_FAILED)
-        } else {
-          buffer = serverpackets.NewPlayOkPacket()
-        }
+				if !bytes.Equal(client.SessionID[:8], requestPlay.SessionID) {
+          l.status.hackAttempts += 1
+
+					buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_ACCESS_FAILED)
+				} else {
+					buffer = serverpackets.NewPlayOkPacket()
+				}
 			} else {
+        l.status.hackAttempts += 1
+
 				buffer = serverpackets.NewPlayFailPacket(serverpackets.REASON_ACCESS_FAILED)
 			}
 			err := packet.Send(client.Socket, buffer)
@@ -181,12 +198,14 @@ func (l *LoginServer) handleClientPackets(client *models.Client) {
 		case 05:
 			requestServerList := clientpackets.NewRequestServerList(p.GetData())
 
-      var buffer []byte
-      if !bytes.Equal(client.SessionID[:8], requestServerList.SessionID) {
-          buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_ACCESS_FAILED)
-      } else {
-        buffer = serverpackets.NewServerListPacket(l.config.GameServers, client.Socket.RemoteAddr().String())
-      }
+			var buffer []byte
+			if !bytes.Equal(client.SessionID[:8], requestServerList.SessionID) {
+        l.status.hackAttempts += 1
+
+				buffer = serverpackets.NewLoginFailPacket(serverpackets.REASON_ACCESS_FAILED)
+			} else {
+				buffer = serverpackets.NewServerListPacket(l.config.GameServers, client.Socket.RemoteAddr().String())
+			}
 			err := packet.Send(client.Socket, buffer)
 
 			if err != nil {
