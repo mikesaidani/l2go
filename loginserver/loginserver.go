@@ -83,7 +83,9 @@ func (l *LoginServer) kickClient(client *models.Client) {
 
 	for i, item := range l.clients {
 		if bytes.Equal(item.SessionID, client.SessionID) {
-			l.clients = append(l.clients[:i], l.clients[i+1:]...)
+			copy(l.clients[i:], l.clients[i+1:])
+			l.clients[len(l.clients)-1] = nil
+			l.clients = l.clients[:len(l.clients)-1]
 			break
 		}
 	}
