@@ -5,7 +5,7 @@ import (
 )
 
 func NewCharCreateOkPacket() []byte {
-	buffer := new(packets.Buffer)
+	buffer := packets.NewBuffer()
 	buffer.WriteByte(0x25)   // Packet type: CharCreateOk
 	buffer.WriteUInt32(0x01) // Everything went like expected
 

@@ -9,6 +9,10 @@ type Buffer struct {
 	bytes.Buffer
 }
 
+func NewBuffer() *Buffer {
+  return &Buffer{}
+}
+
 func (b *Buffer) WriteUInt64(value uint64) {
 	binary.Write(b, binary.LittleEndian, value)
 }

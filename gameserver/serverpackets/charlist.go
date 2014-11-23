@@ -5,9 +5,9 @@ import (
 )
 
 func NewCharListPacket() []byte {
-	buffer := new(packets.Buffer)
+	buffer := packets.NewBuffer()
 	buffer.WriteByte(0x1f)                       // Packet type: CharList
-  buffer.Write([]byte{0x00, 0x00, 0x00, 0x00}) // TODO
+	buffer.Write([]byte{0x00, 0x00, 0x00, 0x00}) // TODO
 
 	return buffer.Bytes()
 }

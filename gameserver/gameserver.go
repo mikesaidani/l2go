@@ -6,7 +6,6 @@ import (
 	"github.com/frostwind/l2go/config"
 	"github.com/frostwind/l2go/gameserver/clientpackets"
 	"github.com/frostwind/l2go/gameserver/models"
-	"github.com/frostwind/l2go/gameserver/packet"
 	"github.com/frostwind/l2go/gameserver/serverpackets"
 	"gopkg.in/mgo.v2"
 	"net"
@@ -50,7 +49,7 @@ func (g *GameServer) Init() {
 	if err != nil {
 		fmt.Println("Couldn't initialize the Game Server")
 	} else {
-		fmt.Printf("Game Server listening on port %s", strconv.Itoa(g.config.GameServer.Port))
+		fmt.Printf("Game Server listening on port %s\n", strconv.Itoa(g.config.GameServer.Port))
 	}
 }
 
@@ -92,8 +91,8 @@ func (g *GameServer) handleClientPackets(client *models.Client) {
 	defer g.kickClient(client)
 
 	// Client protocol version
-	p, err := packet.Receive(client.Socket, nil)
-	protocolVersion := clientpackets.NewProtocolVersion(p.GetData())
+	_, data, err := client.Receive(false)
+	protocolVersion := clientpackets.NewProtocolVersion(data)
 
 	if err != nil {
 		fmt.Println(err)
@@ -109,7 +108,7 @@ func (g *GameServer) handleClientPackets(client *models.Client) {
 	fmt.Println("Sending the Xor Key to the client...")
 
 	buffer := serverpackets.NewCryptInitPacket()
-	err = packet.Send(client.Socket, buffer, nil)
+	err = client.Send(buffer, false)
 
 	if err != nil {
 		fmt.Println(err)
@@ -118,10 +117,8 @@ func (g *GameServer) handleClientPackets(client *models.Client) {
 		fmt.Println("CryptInit packet sent.")
 	}
 
-  fmt.Println(client)
-
 	for {
-		p, err := packet.Receive(client.Socket, client.Cipher.Input)
+		opcode, data, err := client.Receive()
 
 		if err != nil {
 			fmt.Println(err)
@@ -129,12 +126,12 @@ func (g *GameServer) handleClientPackets(client *models.Client) {
 			break
 		}
 
-		switch opcode := p.GetOpcode(); opcode {
+		switch opcode {
 		case 0x08:
 			fmt.Println("Client is requesting login to the Game Server")
 
 			buffer := serverpackets.NewCharListPacket()
-			err := packet.Send(client.Socket, buffer, client.Cipher.Output)
+			err := client.Send(buffer)
 
 			if err != nil {
 				fmt.Println(err)
@@ -144,20 +141,20 @@ func (g *GameServer) handleClientPackets(client *models.Client) {
 			fmt.Println("Client is requesting character creation template")
 
 			buffer := serverpackets.NewCharTemplatePacket()
-			err := packet.Send(client.Socket, buffer, client.Cipher.Output)
+			err := client.Send(buffer)
 
 			if err != nil {
 				fmt.Println(err)
 			}
 
 		case 0x0b:
-			character := clientpackets.NewCharacterCreate(p.GetData())
+			character := clientpackets.NewCharacterCreate(data)
 
 			fmt.Printf("Created a new character : %s\n", character.Name)
 
 			// ACK
 			buffer := serverpackets.NewCharCreateOkPacket()
-			err := packet.Send(client.Socket, buffer, client.Cipher.Output)
+			err := client.Send(buffer)
 
 			if err != nil {
 				fmt.Println(err)
@@ -165,7 +162,7 @@ func (g *GameServer) handleClientPackets(client *models.Client) {
 
 			// Return to the character select screen
 			buffer = serverpackets.NewCharListPacket()
-			err = packet.Send(client.Socket, buffer, client.Cipher.Output)
+			err = client.Send(buffer)
 
 			if err != nil {
 				fmt.Println(err)
