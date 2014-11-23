@@ -46,7 +46,7 @@ func (l *LoginServer) Init() {
 	if err != nil {
 		panic("Couldn't connect to the database server")
 	} else {
-		fmt.Println("Successfully connect to the database server")
+		fmt.Println("Successfully connected to the database server")
 	}
 
 	// Select the appropriate database

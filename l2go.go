@@ -25,12 +25,14 @@ func main() {
     server.Init()
     server.Start()
 	} else {
-		// Load the Game Server specific configuration
+		// Try to load the Game Server configuration
 		if gameServerId >= 1 && len(globalConfig.GameServers) >= gameServerId {
-			var gameServerConfig config.GameServerConfigObject
-			gameServerConfig.LoginServer = globalConfig.LoginServer
-			gameServerConfig.GameServer = globalConfig.GameServers[gameServerId-1]
-			gameserver.Init(gameServerConfig)
+      config := config.GameServerConfigObject{}
+			config.LoginServer = globalConfig.LoginServer
+			config.GameServer = globalConfig.GameServers[gameServerId-1]
+      server := gameserver.New(config)
+      server.Init()
+      server.Start()
 		} else {
 			fmt.Println("No configuration found for the specified server.")
 		}
