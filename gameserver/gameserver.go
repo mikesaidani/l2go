@@ -91,10 +91,6 @@ func (g *GameServer) handleClientPackets(client *models.Client) {
 	fmt.Println("A client is trying to connect...")
 	defer g.kickClient(client)
 
-	// Init our keys
-	var inputKey []byte = []byte{0x94, 0x35, 0x00, 0x00, 0xa1, 0x6c, 0x54, 0x87}
-	var outputKey []byte = []byte{0x94, 0x35, 0x00, 0x00, 0xa1, 0x6c, 0x54, 0x87}
-
 	// Client protocol version
 	p, err := packet.Receive(client.Socket, nil)
 	protocolVersion := clientpackets.NewProtocolVersion(p.GetData())
@@ -122,8 +118,10 @@ func (g *GameServer) handleClientPackets(client *models.Client) {
 		fmt.Println("CryptInit packet sent.")
 	}
 
+  fmt.Println(client)
+
 	for {
-		p, err := packet.Receive(client.Socket, inputKey)
+		p, err := packet.Receive(client.Socket, client.Cipher.Input)
 
 		if err != nil {
 			fmt.Println(err)
@@ -136,7 +134,7 @@ func (g *GameServer) handleClientPackets(client *models.Client) {
 			fmt.Println("Client is requesting login to the Game Server")
 
 			buffer := serverpackets.NewCharListPacket()
-			err := packet.Send(client.Socket, buffer, outputKey)
+			err := packet.Send(client.Socket, buffer, client.Cipher.Output)
 
 			if err != nil {
 				fmt.Println(err)
@@ -146,7 +144,7 @@ func (g *GameServer) handleClientPackets(client *models.Client) {
 			fmt.Println("Client is requesting character creation template")
 
 			buffer := serverpackets.NewCharTemplatePacket()
-			err := packet.Send(client.Socket, buffer, outputKey)
+			err := packet.Send(client.Socket, buffer, client.Cipher.Output)
 
 			if err != nil {
 				fmt.Println(err)
@@ -159,7 +157,7 @@ func (g *GameServer) handleClientPackets(client *models.Client) {
 
 			// ACK
 			buffer := serverpackets.NewCharCreateOkPacket()
-			err := packet.Send(client.Socket, buffer, outputKey)
+			err := packet.Send(client.Socket, buffer, client.Cipher.Output)
 
 			if err != nil {
 				fmt.Println(err)
@@ -167,7 +165,7 @@ func (g *GameServer) handleClientPackets(client *models.Client) {
 
 			// Return to the character select screen
 			buffer = serverpackets.NewCharListPacket()
-			err = packet.Send(client.Socket, buffer, outputKey)
+			err = packet.Send(client.Socket, buffer, client.Cipher.Output)
 
 			if err != nil {
 				fmt.Println(err)
