@@ -2,11 +2,11 @@ package models
 
 import (
 	"crypto/rand"
-	"net"
-  "errors"
-  "github.com/frostwind/l2go/packets"
+	"errors"
+	"fmt"
 	"github.com/frostwind/l2go/loginserver/crypt"
-  "fmt"
+	"github.com/frostwind/l2go/packets"
+	"net"
 )
 
 type Client struct {
@@ -22,12 +22,12 @@ func NewClient() *Client {
 	if err != nil {
 		return nil
 	}
-  return &Client{SessionID: id}
+	return &Client{SessionID: id}
 }
 
 func (c *Client) Receive() (opcode byte, data []byte, e error) {
 	// Read the first two bytes to define the packet size
-  header := make([]byte, 2)
+	header := make([]byte, 2)
 	n, err := c.Socket.Read(header)
 
 	if n != 2 || err != nil {
@@ -69,8 +69,8 @@ func (c *Client) Receive() (opcode byte, data []byte, e error) {
 
 	// Extract the op code
 	opcode = data[0]
-  data = data[1:]
-  e = nil
+	data = data[1:]
+	e = nil
 	return
 }
 
@@ -116,10 +116,10 @@ func (c *Client) Send(data []byte, params ...bool) error {
 	// Calculate the packet length
 	length := uint16(len(data) + 2)
 
-  // Put everything together
-  buffer := packets.NewBuffer()
-  buffer.WriteUInt16(length)
-  buffer.Write(data)
+	// Put everything together
+	buffer := packets.NewBuffer()
+	buffer.WriteUInt16(length)
+	buffer.Write(data)
 
 	_, err := c.Socket.Write(buffer.Bytes())
 

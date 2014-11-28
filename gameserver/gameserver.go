@@ -1,9 +1,11 @@
 package gameserver
 
 import (
+  "errors"
 	"bytes"
 	"fmt"
 	"github.com/frostwind/l2go/config"
+	"github.com/frostwind/l2go/packets"
 	"github.com/frostwind/l2go/gameserver/clientpackets"
 	"github.com/frostwind/l2go/gameserver/models"
 	"github.com/frostwind/l2go/gameserver/serverpackets"
@@ -13,17 +15,70 @@ import (
 )
 
 type GameServer struct {
-	clients         []*models.Client
-	database        *mgo.Database
-	config          config.GameServerConfigObject
-	status          gameServerStatus
-	databaseSession *mgo.Session
-	socket          net.Listener
+	clients           []*models.Client
+	database          *mgo.Database
+	config            config.GameServerConfigObject
+	status            gameServerStatus
+	databaseSession   *mgo.Session
+	clientListener    net.Listener
+	loginServerSocket net.Conn
 }
 
 type gameServerStatus struct {
 	onlinePlayers uint32
 	hackAttempts  uint32
+}
+
+func (g *GameServer) Receive() (opcode byte, data []byte, e error) {
+	// Read the first two bytes to define the packet size
+	header := make([]byte, 2)
+	n, err := g.loginServerSocket.Read(header)
+
+	if n != 2 || err != nil {
+		return 0x00, nil, errors.New("An error occured while reading the packet header.")
+	}
+
+	// Calculate the packet size
+	size := 0
+	size = size + int(header[0])
+	size = size + int(header[1])*256
+
+	// Allocate the appropriate size for our data (size - 2 bytes used for the length
+	data = make([]byte, size-2)
+
+	// Read the encrypted part of the packet
+	n, err = g.loginServerSocket.Read(data)
+
+	if n != size-2 || err != nil {
+		return 0x00, nil, errors.New("An error occured while reading the packet data.")
+	}
+
+	// Print the raw packet
+	fmt.Printf("Raw packet : %X%X\n", header, data)
+
+	// Extract the op code
+	opcode = data[0]
+	data = data[1:]
+	e = nil
+	return
+}
+
+func (g *GameServer) Send(data []byte) error {
+	// Calculate the packet length
+	length := uint16(len(data) + 2)
+
+	// Put everything together
+	buffer := packets.NewBuffer()
+	buffer.WriteUInt16(length)
+	buffer.Write(data)
+
+	_, err := g.loginServerSocket.Write(buffer.Bytes())
+
+	if err != nil {
+		return errors.New("The packet couldn't be sent.")
+	}
+
+	return nil
 }
 
 func New(cfg config.GameServerConfigObject) *GameServer {
@@ -44,8 +99,16 @@ func (g *GameServer) Init() {
 	// Select the appropriate database
 	g.database = g.databaseSession.DB(g.config.GameServer.Database.Name)
 
+	// Connect to the login server
+	g.loginServerSocket, err = net.Dial("tcp", g.config.LoginServer.Host+":9413")
+	if err != nil {
+		fmt.Println("Couldn't connect to the Login Server")
+	} else {
+		fmt.Printf("Successfully connected to the Login Server at %s:9413\n", g.config.LoginServer.Host)
+	}
+
 	// Listen for client connections
-	g.socket, err = net.Listen("tcp", ":"+strconv.Itoa(g.config.GameServer.Port))
+	g.clientListener, err = net.Listen("tcp", ":"+strconv.Itoa(g.config.GameServer.Port))
 	if err != nil {
 		fmt.Println("Couldn't initialize the Game Server")
 	} else {
@@ -55,19 +118,51 @@ func (g *GameServer) Init() {
 
 func (g *GameServer) Start() {
 	defer g.databaseSession.Close()
-	defer g.socket.Close()
+	defer g.clientListener.Close()
 
-	for {
-		var err error
-		client := models.NewClient()
-		client.Socket, err = g.socket.Accept()
-		g.clients = append(g.clients, client)
-		if err != nil {
-			fmt.Println("Couldn't accept the incoming connection.")
-			continue
-		} else {
-			go g.handleClientPackets(client)
+	done := make(chan bool)
+
+	go func() {
+    g.Send([]byte{00, 01, 02})
+
+    for {
+      opcode, _, err := g.Receive()
+
+      if err != nil {
+        fmt.Println(err)
+        fmt.Println("Closing the connection...")
+        break
+      }
+
+      switch opcode {
+      case 00:
+        fmt.Println("A game server sent a request to register")
+      default:
+        fmt.Println("Can't recognize the packet sent by the gameserver")
+      }
+    }
+		done <- true
+	}()
+
+	go func() {
+		for {
+			var err error
+			client := models.NewClient()
+			client.Socket, err = g.clientListener.Accept()
+			g.clients = append(g.clients, client)
+			if err != nil {
+				fmt.Println("Couldn't accept the incoming connection.")
+				continue
+			} else {
+				go g.handleClientPackets(client)
+			}
 		}
+
+		done <- true
+	}()
+
+	for i := 0; i < 2; i++ {
+		<-done
 	}
 }
 
